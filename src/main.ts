@@ -1,25 +1,77 @@
-import { app, BrowserWindow, ipcMain, session } from "electron";
+import { app, BrowserWindow, dialog, Menu, session, Tray, ipcMain } from "electron";
+import { Settings } from "./utils";
 import config from "./config.json";
 import os from "os";
 import keytar from "keytar";
 import request from "request";
 import { join as pathJoin } from "path";
+import { lookup as DnsLookup } from "dns";
+import fs from "fs";
 
+let settings: Settings = JSON.parse(fs.readFileSync(pathJoin(__dirname + "/../settings.json")) as any);
 
 const keytarService = "costabot-electron-oauth";
 const keytarAccount = os.userInfo().username;
 
-let actualWindow: undefined | BrowserWindow;
+app.on("window-all-closed", () => { });
+let startingWindow: BrowserWindow | undefined | null;
+let tray: Tray | null = null;
+let started: boolean = false;
+let menu: Menu | undefined;
 
-(async () => {
-  let token = await keytar.getPassword(keytarService, keytarAccount);
-  if (app.isReady()) {
-    createAuthWindow(token);
-  } else
-    app.on("ready", () => {
+app.on("ready", () => showStartingWindow());
+checkInternet((internetConnection: boolean) => {
+  if (internetConnection) start();
+  else {
+    if (startingWindow) startingWindow.destroy();
+    dialog.showErrorBox(
+      "Pas de connection Internet",
+      "Veuillez vous connecter à Internet pour lancer l'application !"
+    );
+    app.quit();
+  }
+  tray = new Tray(pathJoin(__dirname + "/../static/assets/logo.ico"));
+  menu = Menu.buildFromTemplate([
+    { label: "Montrer", click: () => start(), enabled: false },
+    { label: "Fermer", role: "quit" },
+  ]);
+  tray.setContextMenu(menu);
+});
+
+async function start() {
+  if (settings.stayConnect) {
+    let token = await keytar.getPassword(keytarService, keytarAccount);
+    if (app.isReady()) {
       createAuthWindow(token);
-    });
-})();
+    } else
+      app.on("ready", () => {
+        createAuthWindow(token);
+      });
+  } else {
+    if (app.isReady()) {
+      createAuthWindow(null);
+    } else
+      app.on("ready", () => {
+        createAuthWindow(null);
+      });
+  }
+}
+
+async function showStartingWindow() {
+  await app.whenReady();
+  startingWindow = new BrowserWindow({
+    height: 400,
+    width: 250,
+    frame: false,
+    closable: false,
+    resizable: false,
+    backgroundColor: "#202124",
+    titleBarStyle: "hidden",
+    autoHideMenuBar: true,
+  });
+  startingWindow.loadFile(pathJoin(__dirname + "/loading.html"));
+  startingWindow.show();
+}
 
 function createAuthWindow(token: string | null): void {
   if (token) {
@@ -32,18 +84,21 @@ function createAuthWindow(token: string | null): void {
         method: "GET",
       },
       (err, res) => {
+        if (startingWindow) startingWindow.destroy();
+        startingWindow = null;
         if (err) throw err;
-
-        if (JSON.parse(res.body).message === "401: Unauthorized")
-          showAuthWindow();
+        res.body = JSON.parse(res.body);
+        if (res.body.message === "401: Unauthorized") showAuthWindow();
         else createMainWindow();
       }
     );
-  } else createMainWindow();
+  } else showAuthWindow();
 }
 
 function showAuthWindow(): void {
-  let win = new BrowserWindow();
+  let win = new BrowserWindow({
+    icon: pathJoin(__dirname + "/../static/assets/img/logo.ico"),
+  });
   win.webContents.openDevTools();
   win.loadURL(config.discordConnection.redirectUrl);
   let { session } = win.webContents;
@@ -51,35 +106,56 @@ function showAuthWindow(): void {
     { urls: ["http://localhost:1111/redirect*"] },
     ({ url }) => {
       let { access_token } = getUrlData(url);
-      keytar.setPassword(keytarService, keytarAccount, access_token);
+      if (settings.stayConnect)
+        keytar.setPassword(keytarService, keytarAccount, access_token);
       createMainWindow();
       win.destroy();
     }
   );
+  if (startingWindow) startingWindow.destroy();
+  startingWindow = null;
   win.show();
-  actualWindow = win;
-
 }
 
 async function createMainWindow(): Promise<void> {
+  if (startingWindow) startingWindow.destroy();
+  startingWindow = null;
+  if (menu)
+    if (menu.items.find((i) => i.label === "Montrer"))
+      //@ts-ignore
+      menu.items.find((i) => i.label === "Montrer").enabled = false;
+  if (started) return;
+  started = true;
   await session.defaultSession.loadExtension(
-    pathJoin(__dirname, '../react-extension'),
+    pathJoin(__dirname, "../react-extension"),
     { allowFileAccess: true }
-  )
+  );
   let win = new BrowserWindow({
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      enableRemoteModule: true,
     },
-    frame: false,
-    titleBarStyle: "hidden",
+    icon: pathJoin(__dirname + "/../static/assets/logo.ico"),
     autoHideMenuBar: true,
     darkTheme: true,
     backgroundColor: "#202124",
+    title: "CostaBot",
+  });
+  win.on("close", () => {
+    if (win.webContents.isDevToolsOpened()) {
+      win.webContents.closeDevTools();
+    }
+  });
+  win.on("closed", () => {
+    started = false;
+    if (menu)
+      if (menu.items.find((i) => i.label === "Montrer"))
+        //@ts-ignore
+        menu.items.find((i) => i.label === "Montrer").enabled = true;
   });
   win.webContents.openDevTools();
-  win.loadFile("index.html");
-  actualWindow = win;
+  win.loadFile(pathJoin(__dirname + "/index.html"));
 }
 
 function getUrlData(url: string): any {
@@ -93,17 +169,23 @@ function getUrlData(url: string): any {
   return r;
 }
 
+function checkInternet(cb: CallableFunction) {
+  DnsLookup("google.com", (err: any) => {
+    if (err && err.code == "ENOTFOUND") {
+      cb(false);
+    } else {
+      cb(true);
+    }
+  });
+}
 
-ipcMain.on("maximize", () => {
-  if (actualWindow) {
-    if (actualWindow.isMaximized())
-      actualWindow.unmaximize();
-    else
-      actualWindow.maximize();
-  }
+
+ipcMain.on("reloadSettings", () => {
+  settings = JSON.parse(fs.readFileSync(pathJoin(__dirname + "/../settings.json")) as any);
+  if (!settings.stayConnect)
+    keytar.deletePassword(keytarService, keytarAccount);
 });
 
-ipcMain.on("minimize", () => {
-  if (actualWindow)
-    actualWindow.minimize();
+ipcMain.on("deletePassword", () => {
+  keytar.deletePassword(keytarService, keytarAccount);
 });

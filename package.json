@@ -1,14 +1,13 @@
 {
-  "name": "app",
+  "name": "costabot",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "L'application pour CostaBot",
+  "main": "dist/main.js",
   "scripts": {
     "build": "webpack --watch",
     "start": "electron dist/main.js",
     "restart": "webpack && npm start",
-    "test": "node test.js",
-    "electron-v": "electron -v"
+    "test": "electron test.js"
   },
   "repository": {
     "type": "git",
@@ -21,12 +20,12 @@
   },
   "homepage": "https://github.com/Staco78/CostaBotElectronApp#readme",
   "devDependencies": {
-    "@types/node-fetch": "^2.5.8",
     "@types/react": "^17.0.2",
     "@types/react-dom": "^17.0.1",
     "@types/request": "^2.48.5",
     "electron": "^12.0.0",
     "html-webpack-plugin": "^5.2.0",
+    "node-loader": "^1.0.2",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "ts-loader": "^8.0.17",
@@ -35,11 +34,8 @@
     "webpack-cli": "^4.5.0"
   },
   "dependencies": {
-    "custom-electron-titlebar": "^3.2.6",
-    "frameless-titlebar": "^2.1.4",
+    "@material-ui/core": "^4.11.3",
     "keytar": "^6.0.1",
-    "node-fetch": "^2.6.1",
-    "node-loader": "^1.0.2",
     "request": "^2.88.2"
   }
 }
