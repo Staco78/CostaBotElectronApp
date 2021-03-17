@@ -1,3 +1,4 @@
 export interface Settings {
-    stayConnect: boolean
+    stayConnect: boolean,
+    dlPath: string
 }

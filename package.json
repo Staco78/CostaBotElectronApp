@@ -1,13 +1,14 @@
 {
   "name": "costabot",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "L'application pour CostaBot",
   "main": "dist/main.js",
   "scripts": {
     "build": "webpack --watch",
     "start": "electron dist/main.js",
     "restart": "webpack && npm start",
-    "test": "electron test.js"
+    "test": "node test.js",
+    "pack": "webpack && node appPacker.js"
   },
   "repository": {
     "type": "git",
@@ -23,6 +24,8 @@
     "@types/react": "^17.0.2",
     "@types/react-dom": "^17.0.1",
     "@types/request": "^2.48.5",
+    "@types/shelljs": "^0.8.8",
+    "@types/ws": "^7.4.0",
     "electron": "^12.0.0",
     "html-webpack-plugin": "^5.2.0",
     "node-loader": "^1.0.2",
@@ -30,12 +33,19 @@
     "react-dom": "^17.0.1",
     "ts-loader": "^8.0.17",
     "typescript": "^4.2.3",
-    "webpack": "^5.24.3",
+    "webpack": "^5.25.0",
     "webpack-cli": "^4.5.0"
   },
   "dependencies": {
     "@material-ui/core": "^4.11.3",
+    "@material-ui/icons": "4.11.2",
+    "appdata-path": "^1.0.0",
+    "electron-packager": "^15.2.0",
     "keytar": "^6.0.1",
-    "request": "^2.88.2"
+    "request": "^2.88.2",
+    "rimraf": "^3.0.2",
+    "sanitize-filename": "^1.6.3",
+    "ws": "^7.4.4",
+    "ytdl-core": "^4.5.0"
   }
 }

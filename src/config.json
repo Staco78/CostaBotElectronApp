@@ -2,5 +2,7 @@
     "discordConnection": {
         "redirectUrl": "https://discord.com/api/oauth2/authorize?client_id=801593908265091073&redirect_uri=http%3A%2F%2Flocalhost%3A1111%2Fredirect&response_type=token&scope=identify"
     },
-    "discordApi": "https://discord.com/api"
+    "discordApi": "https://discord.com/api",
+    "botUrl": "ws://staco.ddns.net:8080",
+    "debug": false
 }
